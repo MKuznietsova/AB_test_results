@@ -1,0 +1,60 @@
+import pandas as pd
+ds = pd.read_csv('ab_test_data.csv')
+ds.head()
+
+#Number of users in each group
+group_a = ds[ds.test_group == 'a']
+group_b = ds[ds.test_group == 'b']
+print (f'There are {len(group_a)} users in A-group and {len(group_b)} users in B-group')
+
+#all users in the column are unique
+a_users = group_a['user_id'].nunique()
+b_users = group_b['user_id'].nunique()
+print(a_users)
+print(b_users)
+
+#number of conversions in each group and conversion level
+a_conv = group_a['conversion'].sum()
+b_conv = group_b['conversion'].sum()
+a_conv_level = round((a_conv/a_users), 3)*100
+b_conv_level = round((b_conv/b_users), 3)*100
+print (f'There have been {a_conv} conversions in A-group and {b_conv} conversions in B-group')
+print(f'Level of conversion in A-group is {a_conv_level}, in B-group – {b_conv_level}')
+
+#calculation of test duration
+date = ds.timestamp.str.split(' ', expand = True)[0]
+ds.insert(1, 'Date', value = date)
+ds.Date = pd.to_datetime(ds['Date'])
+start_date = ds.Date.min()
+end_date = ds.Date.max()
+test_len = end_date - start_date
+print(f'The date of the test start is {start_date}, the date of the test end is {end_date}, the test length is {test_len}')
+
+from scipy import stats
+
+alpha = 0.05
+
+#H1 means that mean of conversion in group A < than in group B
+#Grup A recieved the regular price, group B recieved the same price with the message about discount
+t_stat, pvalue = stats.ttest_ind(ds[ds['test_group']=='a']['conversion'],
+                                 ds[ds['test_group']=='b']['conversion'], alternative = 'less')
+print ('T-statistics is ', round(t_stat, 2))
+print ('P-value is ', round(pvalue, 2))
+
+if pvalue < alpha:
+    print(f'The difference is statistically significant, Null hypothesis is rejected')
+else:
+    print(f'The difference is statisically not significant, Null hypothesis can not be rejected')
+
+#lets figure out results on the bar plot
+import matplotlib.pyplot as plt
+import seaborn as sns
+plt.figure(figsize=(7, 5))
+sns.barplot(x=ds['test_group'], 
+            y=ds['conversion'], 
+            errorbar=('ci', 95)) # Confidence Intervals
+
+plt.title('A/B Test Results in 95% confidence interval')
+plt.xlabel('Group')
+plt.ylabel('Mean')
+plt.show()
